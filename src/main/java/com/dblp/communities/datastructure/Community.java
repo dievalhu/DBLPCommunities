@@ -9,6 +9,7 @@ public class Community {
 	private LabeledUndirectedGraph initialGraph;
 	private boolean[] in;
 	private int size;
+	private double lowerBound;
 	private boolean sizeComputed;
 	private boolean isStrongCommunity;
 	private boolean hasComputedStrongProperty;
@@ -18,12 +19,15 @@ public class Community {
 	private boolean isWeakWeightedCommunity;
 	private boolean hasComputedStrongWeightedProperty;
 	private boolean isStrongWeightedCommunity;
+	private boolean hasComputedBoundedProperty;
+	private boolean isBoundedCommunity;
 	
-	public Community(LabeledUndirectedGraph initialGraph, boolean[] in) {
+	public Community(LabeledUndirectedGraph initialGraph, boolean[] in, double lowerBound) {
 		this.initialGraph = initialGraph;
 		this.in = in;
 		this.sizeComputed = false;
 		this.size = -1;
+		this.lowerBound = lowerBound;
 		this.hasComputedStrongProperty = false;
 		this.isStrongCommunity = false;
 		this.hasComputedWeakProperty = false;
@@ -31,6 +35,8 @@ public class Community {
 		this.hasComputedWeakWeightedProperty = false;
 		this.hasComputedStrongWeightedProperty = false;
 		this.isStrongWeightedCommunity = false;
+		this.hasComputedBoundedProperty = false;
+		this.isBoundedCommunity = false;
 	}
 	
 	public boolean isWeakWeightedCommunity() {
@@ -42,18 +48,18 @@ public class Community {
 		
 		for (Edge e : initialGraph.edges()) {
 			if (in[e.start()] && !in[e.end()]) {
-				sumExternal += e.getCount();
+				sumExternal += e.getWeight();
 			} else if (!in[e.start()] && in[e.end()]) {
-				sumExternal += e.getCount();
+				sumExternal += e.getWeight();
 			} else if (in[e.start()] && in[e.end()]) {
-				sumInternal += e.getCount();
-				sumInternal += e.getCount();
+				sumInternal += e.getWeight();
+				sumInternal += e.getWeight();
 			} else { 
 				// both not in -> do nothing
 			}
 		}
 		
-		if (sumInternal > sumExternal) {
+		if (sumInternal > sumExternal && size() >= Math.round(initialGraph.numNodes()*lowerBound)) {
 			isWeakWeightedCommunity = true;
 		} else {
 			isWeakWeightedCommunity = false;
@@ -62,6 +68,20 @@ public class Community {
 		hasComputedWeakWeightedProperty = true;
 		
 		return isWeakWeightedCommunity;
+	}
+	
+	public boolean isBoundedCommunity() {
+		if (hasComputedBoundedProperty)
+			return isBoundedCommunity;
+		
+		if (size() >= Math.round(initialGraph.numNodes()*lowerBound))
+			isBoundedCommunity = true;
+		else
+			isBoundedCommunity = false;
+		
+		hasComputedBoundedProperty = true;
+		
+		return isBoundedCommunity;
 	}
 	
 	public boolean isWeakCommunity() {
@@ -87,7 +107,7 @@ public class Community {
 			}
 		}
 		
-		if (sumInternal > sumExternal) {
+		if (sumInternal > sumExternal && size() >= Math.round(initialGraph.numNodes()*lowerBound)) {
 			isWeakCommunity = true;
 		} else {
 			isWeakCommunity = false;
@@ -104,17 +124,23 @@ public class Community {
 		
 		isStrongWeightedCommunity = true; // true until the opposite is proved
 		
+		if (size() < Math.round(initialGraph.numNodes()*lowerBound)) {
+			isStrongWeightedCommunity = false;
+			hasComputedStrongWeightedProperty = true;
+			return isStrongWeightedCommunity;
+		}
+		
 		int[] numInternal = new int[initialGraph.numNodes()];
 		int[] numExternal = new int[initialGraph.numNodes()];
 		
 		for (Edge e : initialGraph.edges()) {
 			if (in[e.start()] && !in[e.end()]) {
-				numExternal[e.start()] += e.getCount();
+				numExternal[e.start()] += e.getWeight();
 			} else if (!in[e.start()] && in[e.end()]) {
-				numExternal[e.end()] += e.getCount();
+				numExternal[e.end()] += e.getWeight();
 			} else if (in[e.start()] && in[e.end()]) {
-				numInternal[e.start()] += e.getCount();
-				numInternal[e.end()] += e.getCount();
+				numInternal[e.start()] += e.getWeight();
+				numInternal[e.end()] += e.getWeight();
 			} else { 
 				// if both not inside community -> do nothing
 			}
@@ -131,7 +157,7 @@ public class Community {
 		
 		hasComputedStrongWeightedProperty = true;
 		
-		return true;
+		return isStrongWeightedCommunity;
 	}
 	
 	public boolean isStrongCommunity() {
@@ -139,6 +165,12 @@ public class Community {
 			return isStrongCommunity;
 		
 		isStrongCommunity = true; // true until the opposite is proved
+		
+		if (size() < Math.round(initialGraph.numNodes()*lowerBound)) {
+			isStrongCommunity = false;
+			hasComputedStrongProperty = true;
+			return isStrongCommunity;
+		}
 		
 		for (int node = 0; node < in.length; ++node) {
 			if (in[node]) {

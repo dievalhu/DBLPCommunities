@@ -6,36 +6,43 @@ public class Edge {
 	
 	protected Node head;
 	protected Node tail;
-	protected Integer count;
+	protected Integer weight;
 
 	public Edge() {
 		this.head = null;
 		this.tail = null;
-		this.count = new Integer(0);
+		this.weight = new Integer(0);
 	}
 	
 	public Edge(Node head, Node tail) {
 		this.head = head;
 		this.tail = tail;
-		this.count = new Integer(1);
+		this.weight = new Integer(1);
 	}
 	
-	public Edge(Node head, Node tail, Integer count) {
+	/**
+	 * Creates an edge.
+	 * 
+	 * @param head the head node of the edge
+	 * @param tail the tail node of the edge
+	 * @param weight the weight of the edge
+	 */
+	public Edge(Node head, Node tail, Integer weight) {
 		this.head = head;
 		this.tail = tail;
-		this.count = count;
+		this.weight = weight;
 	}
 	
 	/**
 	 * Getters and setters.
 	 */
 	
-	public Integer getCount() {
-		return count;
+	public Integer getWeight() {
+		return weight;
 	}
 
-	public void setCount(Integer count) {
-		this.count = count;
+	public void setWeight(Integer weight) {
+		this.weight = weight;
 	}
 	
 	public Node getHead() {
@@ -59,7 +66,7 @@ public class Edge {
 	 */
 
 	public Edge copy() {
-		return new Edge(this.head.copy(), this.tail.copy());
+		return new Edge(this.head.copy(), this.tail.copy(), new Integer(this.getWeight()));
 	}
 	
 	public int start() {

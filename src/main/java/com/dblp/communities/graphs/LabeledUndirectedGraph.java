@@ -8,7 +8,6 @@ import java.util.LinkedList;
 import com.dblp.communities.parser.Coauthor;
 import com.dblp.communities.parser.ParserEdge;
 import com.dblp.communities.parser.ParserResult;
-import com.dblp.communities.utilities.MinMax;
 
 public class LabeledUndirectedGraph extends UndirectedGraph implements Serializable {
 
@@ -17,6 +16,7 @@ public class LabeledUndirectedGraph extends UndirectedGraph implements Serializa
 	protected HashMap<Integer,String> idToName;
 	protected String mainPersonName;
 	protected HashMap<Edge,Integer> edgeToCount;
+	protected HashMap<String,Integer> numPublicationsWithMainAuthor;
 	
 	public void giveNodeName(int id, String name) {
 		nameToId.put(name, id);
@@ -32,6 +32,7 @@ public class LabeledUndirectedGraph extends UndirectedGraph implements Serializa
 		this.nameToId = new HashMap<String,Integer>();
 		this.idToName = new HashMap<Integer,String>();
 		this.edgeToCount = new HashMap<Edge,Integer>();
+		this.numPublicationsWithMainAuthor = new HashMap<String,Integer>();
 	}
 	
 	public LabeledUndirectedGraph(LabeledUndirectedGraph graph) {
@@ -40,8 +41,10 @@ public class LabeledUndirectedGraph extends UndirectedGraph implements Serializa
 		this.idToName = new HashMap<Integer,String>(graph.idToName);
 		this.mainPersonName = graph.mainPersonName;
 		this.edgeToCount = new HashMap<Edge,Integer>();
+		this.numPublicationsWithMainAuthor = new HashMap<String,Integer>(graph.numPublicationsWithMainAuthor);
 	}
 	
+	// TODO: Update this method to include WEIGHTS on edges
 	public LabeledUndirectedGraph(String mainPersonName, String mainPersonUrlPt, boolean includeMainAuthor, ParserResult result) {
 		this.nameToId = new HashMap<String,Integer>();
 		this.idToName = new HashMap<Integer,String>();
@@ -92,6 +95,7 @@ public class LabeledUndirectedGraph extends UndirectedGraph implements Serializa
 		this.nameToId = new HashMap<String,Integer>();
 		this.idToName = new HashMap<Integer,String>();
 		this.edgeToCount = new HashMap<Edge,Integer>();
+		this.numPublicationsWithMainAuthor = new HashMap<String,Integer>();
 		this.mainPersonName = mainPersonName;
 		
 		this.graph = new ArrayList<LinkedList<Node>>(numNodes);
@@ -99,9 +103,12 @@ public class LabeledUndirectedGraph extends UndirectedGraph implements Serializa
 		this.edgeList = new ArrayList<Edge>();
 		this.numEdges = 0;
 		
+		this.neighborEdgeList = new ArrayList<LinkedList<Edge>>();
+		
 		if (includeMainAuthor) {
 			this.numNodes = 1 + coauthors.size();	
 			graph.add(0, new LinkedList<Node>());
+			neighborEdgeList.add(0, new LinkedList<Edge>());
 			idToName.put(0, mainPersonName);
 			nameToId.put(mainPersonName, 0);
 			nodeList.add(new Node(0));
@@ -112,7 +119,9 @@ public class LabeledUndirectedGraph extends UndirectedGraph implements Serializa
 				Integer count = coauthor.getCount();
 				nameToId.put(coauthorName, i);
 				idToName.put(i, coauthorName);
+				numPublicationsWithMainAuthor.put(coauthorName, coauthor.getCount());
 				graph.add(i, new LinkedList<Node>());
+				neighborEdgeList.add(i, new LinkedList<Edge>());
 				Edge edge = new Edge(new Node(0), new Node(i), count);
 				edgeToCount.put(edge, count);
 				addEdge(edge);
@@ -121,9 +130,13 @@ public class LabeledUndirectedGraph extends UndirectedGraph implements Serializa
 			this.numNodes = coauthors.size();
 			for (int i = 0; i < numNodes; ++i) {
 				nodeList.add(new Node(i));
-				nameToId.put(coauthors.get(i).getName(), i);
-				idToName.put(i, coauthors.get(i).getName());
-				graph.add(i, new LinkedList<Node>());	
+				Coauthor coauthor = coauthors.get(i);
+				String coauthorName = coauthor.getName();
+				nameToId.put(coauthorName, i);
+				idToName.put(i, coauthorName);
+				numPublicationsWithMainAuthor.put(coauthorName, coauthor.getCount());
+				graph.add(i, new LinkedList<Node>());
+				neighborEdgeList.add(i, new LinkedList<Edge>());
 			}
 		}
 		
@@ -140,6 +153,15 @@ public class LabeledUndirectedGraph extends UndirectedGraph implements Serializa
 					addEdge(edge);
 				}
 			}
+		}
+	}
+	
+	public int numPublicationsWithMainAuthor(String coauthorName) {
+		Integer answer = numPublicationsWithMainAuthor.get(coauthorName);
+		if (answer != null) {
+			return answer.intValue();
+		} else {
+			return 0;
 		}
 	}
 	

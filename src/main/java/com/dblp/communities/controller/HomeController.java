@@ -10,7 +10,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -19,7 +18,6 @@ import com.dblp.communities.domain.Input;
 import com.dblp.communities.domain.LayerInput;
 import com.dblp.communities.domain.Person;
 import com.dblp.communities.graphs.LabeledUndirectedGraph;
-import com.dblp.communities.graphs.LabeledUndirectedMultigraph;
 import com.dblp.communities.io.FileDownloader;
 import com.dblp.communities.parser.Hit;
 import com.dblp.communities.service.AlgorithmService;
@@ -58,17 +56,8 @@ public class HomeController {
 		
 		algorithmService.saveInputSettingsInSession(newSettings, request);
 		algorithmService.saveInputSettingsInModel(newSettings, model);
-		LabeledUndirectedGraph graph = algorithmService.buildCollaborationNetwork(result1, request, model, newSettings, true);
-		
-		if (graph == null) {
-			model.addAttribute("error", "Too many requests were made to the DBLP database."
-					+ " If you search for an author with many coauthors, it may happen that"
-					+ " the required number of requests for coauthor lists in order to build"
-					+ " the collaboration network is higher than what the DBLP database permits.");
-			System.out.println("changeSettings: error");
-			return "error";
-		}
-		
+		algorithmService.buildCollaborationNetwork(result1, request, model, newSettings, true);
+		LabeledUndirectedGraph graph = algorithmService.getCollaborationNetwork(request, newSettings.isIncludeMainAuthor());
 		algorithmService.executeRadicchiAlgorithm(graph, request, model, newSettings);
 		
 		String person = (String) request.getSession().getAttribute("person");
@@ -89,18 +78,13 @@ public class HomeController {
 		
 		if (result.hasErrors()) {
 			return "chooseperson";
-		}
+		}		
 		
 		algorithmService.saveInputSettingsInSession(input, request);
 		algorithmService.saveInputSettingsInModel(input, model);
-		
-		LabeledUndirectedGraph graph = algorithmService.buildCollaborationNetwork(result, request, model, input, false);
-		if (graph == null) {
-			model.addAttribute("error", "Too many requests were made to the DBLP database.");
-			return "error";
-		}
-		
-		algorithmService.executeRadicchiAlgorithm(graph, request, model, input);	
+		algorithmService.buildCollaborationNetwork(result, request, model, input, false);
+		LabeledUndirectedGraph graph = algorithmService.getCollaborationNetwork(request, input.isIncludeMainAuthor());
+		algorithmService.executeRadicchiAlgorithm(graph, request, model, input);			
 		
 		LayerInput layerInput = new LayerInput();
 		layerInput.setPerson(input.getPerson());

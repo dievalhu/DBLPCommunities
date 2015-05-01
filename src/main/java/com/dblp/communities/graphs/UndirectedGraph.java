@@ -10,6 +10,7 @@ import com.dblp.communities.utilities.MinMax;
 public class UndirectedGraph implements GraphI {
 
 	protected ArrayList<LinkedList<Node>> graph;
+	protected ArrayList<LinkedList<Edge>> neighborEdgeList;
 	protected ArrayList<Edge> edgeList;
 	protected LinkedList<Node> nodeList;
 	protected int numNodes;
@@ -18,38 +19,48 @@ public class UndirectedGraph implements GraphI {
 	/**
 	 * A copy constructor.
 	 * 
-	 * @param g
+	 * @param toBeCopied
 	 */
-	public UndirectedGraph(UndirectedGraph g) {
-		this.graph = new ArrayList<LinkedList<Node>>(g.graph.size());
-		for (int i = 0; i < g.graph.size(); ++i) {
+	public UndirectedGraph(UndirectedGraph toBeCopied) {
+		this.graph = new ArrayList<LinkedList<Node>>(toBeCopied.graph.size());
+		this.neighborEdgeList = new ArrayList<LinkedList<Edge>>(toBeCopied.graph.size());
+		for (int i = 0; i < toBeCopied.graph.size(); ++i) {
 			graph.add(i, new LinkedList<Node>());
+			neighborEdgeList.add(i, new LinkedList<Edge>());
 		}
-		for (int i = 0; i < graph.size(); ++i) {
-			for (Node n : g.graph.get(i)) {
+		for (int i = 0; i < toBeCopied.graph.size(); ++i) {
+			for (Node n : toBeCopied.graph.get(i)) {
 				graph.get(i).add(n.copy());
 			}
 		}
+		for (int i = 0; i < toBeCopied.neighborEdgeList.size(); ++i) {
+			for (Edge e : toBeCopied.neighborEdgeList.get(i)) {
+				neighborEdgeList.get(i).add(e.copy());
+			}
+		}
 		
-		this.edgeList = new ArrayList<Edge>(g.edgeList.size());
-		for (Edge e : g.edgeList) {
+		this.edgeList = new ArrayList<Edge>(toBeCopied.edgeList.size());
+		for (Edge e : toBeCopied.edgeList) {
 			this.edgeList.add(e.copy());
 		}		
 		
 		this.nodeList = new LinkedList<Node>();
-		for (Node n : g.nodeList) {
+		for (Node n : toBeCopied.nodeList) {
 			this.nodeList.add(n.copy());
 		}
 		
-		this.numNodes = g.numNodes;
-		this.numEdges = g.numEdges;		
+		this.numNodes = toBeCopied.numNodes;
+		this.numEdges = toBeCopied.numEdges;	
+		System.out.println("End of UndirectedGraph constructur");
 	}
 	
 	public UndirectedGraph(int numNodes) {
 		this.graph = new ArrayList<LinkedList<Node>>(numNodes);
+		this.neighborEdgeList = new ArrayList<LinkedList<Edge>>();
 		this.nodeList = new LinkedList<Node>();
 		for (int i = 0; i < numNodes; ++i) {
 			graph.add(i, new LinkedList<Node>());
+			neighborEdgeList.add(i, new LinkedList<Edge>());
 			nodeList.add(new Node(i));
 		}
 		
@@ -61,10 +72,20 @@ public class UndirectedGraph implements GraphI {
 	
 	public UndirectedGraph() {
 		this.graph = new ArrayList<LinkedList<Node>>();
+		this.neighborEdgeList = new ArrayList<LinkedList<Edge>>();
 		this.nodeList = new LinkedList<Node>();
 		this.edgeList = new ArrayList<Edge>();
 		this.numNodes = 0;
 		this.numEdges = 0;
+	}
+	
+	public LinkedList<Edge> edgesAdjacentTo(Node u) {
+		if (neighborEdgeList == null)
+			return new LinkedList<Edge>();
+		if (u.id() >= neighborEdgeList.size())
+			return new LinkedList<Edge>();
+		
+		return neighborEdgeList.get(u.id());
 	}
 	
 	public final ArrayList<LinkedList<Node>> adjacencyList() {
@@ -72,7 +93,8 @@ public class UndirectedGraph implements GraphI {
 	}
 	
 	public void sortAdjacencyList() {
-		for (int i = 0; i < numNodes; ++i) {
+		System.out.println("UndirectedGraph: sortAdjacencyList(): size of adjacency list = " + graph.size());
+		for (int i = 0; i < graph.size(); ++i) {
 			Collections.sort(graph.get(i));
 		}
 	}
@@ -84,31 +106,72 @@ public class UndirectedGraph implements GraphI {
 	public int numEdges() {
 		return this.numEdges;
 	}
+	
+	/**
+	 * Get the weight of the edge between the two given nodes. 0
+	 * is returned if the edge does not exist.
+	 * 
+	 * @param u one node
+	 * @param v another node
+	 * @return the weight of the edge between nodes u and v but 0
+	 * if the edge does not exist.
+	 */
+	public Integer weight(Node u, Node v) {
+		Integer weight = new Integer(0);
+		if (u.equals(v)) {
+			return weight;
+		}
+		for (Edge e : neighborEdgeList.get(u.id())) {
+			if (e.getHead().equals(v)) {
+				weight = new Integer(e.getWeight());
+				break;
+			}
+		}
+		return weight;
+	}
+	
+	public Integer strength(Node u) {
+		Integer sum = new Integer(0);
+		for (Edge e : neighborEdgeList.get(u.id())) {
+			sum = sum + e.getWeight();
+		}
+		return sum;
+	}
 
 	public void addEdge(Edge e) {
 		
-		int u = e.head().id();
-		int v = e.tail().id();
+		Integer weight = e.getWeight();
+		Node uNode = e.head();
+		Node vNode = e.tail();
+		int uId = uNode.id();
+		int vId = vNode.id();
 		
-		if (u < 0 || u >= numNodes)
+		if (uId < 0 || uId >= numNodes)
 			throw new IndexOutOfBoundsException();
-		if (v < 0 || v >= numNodes())
+		if (vId < 0 || vId >= numNodes)
 			throw new IndexOutOfBoundsException();
 		
-		if (areNeighbors(e.head(), e.tail()))
+		if (areNeighbors(uNode, vNode))
 			return;
 		
 		++this.numEdges;
 		
-		graph.get(u).add(e.tail());
-		graph.get(v).add(e.head());
+		graph.get(uId).add(vNode);
+		graph.get(vId).add(uNode);
 		
-		MinMax<Integer> minMax = new MinMax<Integer>(u,v);
+		Edge uv = new Edge(vNode, uNode, weight);
+		Edge vu = new Edge(uNode, vNode, weight);
 		
-		if (minMax.min() == u) {
-			edgeList.add(new Edge(e.head(),e.tail()));
+		neighborEdgeList.get(uId).add(uv);
+		neighborEdgeList.get(vId).add(vu);
+		
+		MinMax<Integer> minMax = new MinMax<Integer>(uId,vId);
+		
+		// make the tail lowest numbered
+		if (minMax.min() == uId) {
+			edgeList.add(uv);
 		} else {
-			edgeList.add(new Edge(e.tail(),e.head()));
+			edgeList.add(vu);
 		}
 	}
 
@@ -122,7 +185,6 @@ public class UndirectedGraph implements GraphI {
 
 	public Iterable<Node> neighborhood(Node node) {
 		if (node == null) {
-			System.out.println("UndirectedGraph: neighborhood: node == null");
 			return null;
 		}
 		if (node.id() < 0 || node.id() >= numNodes())

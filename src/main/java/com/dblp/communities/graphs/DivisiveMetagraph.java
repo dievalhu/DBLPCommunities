@@ -2,14 +2,9 @@ package com.dblp.communities.graphs;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.TreeSet;
 
-import com.dblp.communities.datastructure.PersonInCommunity;
-import com.dblp.communities.datastructure.WebCommunity;
 import com.dblp.communities.utilities.MinMax;
 
 /**
@@ -40,6 +35,10 @@ public class DivisiveMetagraph {
 		this.visibleIdToCommunityId = new HashMap<Integer,Integer>();
 		
 		this.makeInitialNeighborhoodStructure(graph);
+	}
+	
+	public ArrayList<HashMap<Integer, Integer>> getNeighborhoodStructure() {
+		return neighbors;
 	}
 	
 	/**
@@ -256,33 +255,6 @@ public class DivisiveMetagraph {
 		int communityOfV = find(v);
 		return neighbors.get(communityOfV).keySet();
 	}
-	
-	/**
-	 * Returns the neighborhood of the community of
-	 * vertex v in terms of the visible ids of the
-	 * communities, that is, in terms of the ids of
-	 * the communities shown on the web page.
-	 * 
-	 * @param v a vertex
-	 * @return the neighborhood of the community of
-	 * vertex v in terms of the visible ids of the
-	 * communities, that is, in terms of the ids of
-	 * the communities shown on the web page.
-	 */
-//	public Set<Integer> visibleIdNeighborhood(int v) {
-//		int communityOfV = find(v);		
-//		Set<Integer> neighborsOfVAsMetagraphIds = neighbors.get(communityOfV).keySet();
-//		Set<Integer> neighborsOfVAsVisibleIds = new HashSet<Integer>();
-//		
-//		// TODO: Fjerne? Fikse?
-//		updateVisibleIds();
-//		
-//		for (Integer n : neighborsOfVAsMetagraphIds) { 
-//			neighborsOfVAsVisibleIds.add(communityIdToVisibleId.get(n));
-//		}
-//		
-//		return neighborsOfVAsVisibleIds;
-//	}
 	
 	/**
 	 * Returns the number of neighboring communities 

@@ -5,11 +5,21 @@ public class JSONEdge {
 	private String id;
 	private String source;
 	private String target;
-	
-	public JSONEdge(String id, String source, String target) {
+	private String label;
+
+	public JSONEdge(String id, String source, String target, String label) {
 		this.id = id;
 		this.source = source;
 		this.target = target;
+		this.label = label;
+	}
+
+	public String getLabel() {
+		return label;
+	}
+
+	public void setLabel(String label) {
+		this.label = label;
 	}
 
 	public String getId() {

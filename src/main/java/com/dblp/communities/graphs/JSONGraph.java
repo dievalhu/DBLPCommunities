@@ -20,8 +20,9 @@ public class JSONGraph {
 			String headId = new String(edge.head().id() + "");
 			String tailId = new String(edge.tail().id() + "");
 			String edgeId = new String(numEdges + "");
+			String label = new String(edge.getWeight() + "");
 			++numEdges;
-			JSONEdge jsonEdge = new JSONEdge(edgeId, headId, tailId);
+			JSONEdge jsonEdge = new JSONEdge(edgeId, headId, tailId, label);
 			this.edges.add(jsonEdge);
 		}
 		
@@ -32,7 +33,7 @@ public class JSONGraph {
 			int curr = 0;
 			x = 0;
 			for (PersonInCommunity elm : component) {
-				String id = new String(elm.nodeId + "");
+				String id = new String(elm.getNodeId() + "");
 				JSONNode jsonNode = new JSONNode(id,graph.idToName.get(Integer.parseInt(id)));
 				jsonNode.setGroup(component.getId());
 				jsonNode.setX(x);

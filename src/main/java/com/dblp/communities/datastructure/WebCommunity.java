@@ -16,6 +16,7 @@ public class WebCommunity implements Iterable<PersonInCommunity> {
 	private int id; // shown on the web page
 	private int color; // from DFS
 	private int metagraphParentId;
+	private int internalEdgeWeight;
 	private List<PersonInCommunity> elements;
 	private HashMap<Integer,Integer> numEdgesTo;
 	
@@ -29,11 +30,19 @@ public class WebCommunity implements Iterable<PersonInCommunity> {
 				+ ", elements = {";
 		for (int i = 0; i < elements.size(); ++i) {
 			PersonInCommunity e = elements.get(i); 
-			result += "(" + e.nodeId + "," + e.name + "," + e.color + "), ";
+			result += "(" + e.getNodeId() + "," + e.getName() + "," + e.getColor() + "), ";
 		}
 		result += "}";
 		
 		return result;
+	}
+	
+	public int getInternalEdgeWeight() {
+		return internalEdgeWeight;
+	}
+
+	public void setInternalEdgeWeight(int internalEdgeWeight) {
+		this.internalEdgeWeight = internalEdgeWeight;
 	}
 	
 	/**

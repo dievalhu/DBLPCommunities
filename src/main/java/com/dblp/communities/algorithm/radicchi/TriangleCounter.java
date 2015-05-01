@@ -2,7 +2,6 @@ package com.dblp.communities.algorithm.radicchi;
 
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Map.Entry;
 
 import com.dblp.communities.graphs.Edge;
 import com.dblp.communities.graphs.Node;
@@ -12,19 +11,10 @@ public class TriangleCounter {
 	
 	private UndirectedGraph graph;
 	private HashMap<Edge,Integer> numTriangles;
-	private int offset;
 	
-	public TriangleCounter(UndirectedGraph graph, int offset) {
-		this.graph = graph;
+	public TriangleCounter(UndirectedGraph graph) {
+		this.graph = new UndirectedGraph(graph);
 		this.numTriangles = countTriangles();
-		this.offset = offset;
-	}
-	
-	public void printTriangleStats() {		
-		for (Entry<Edge,Integer> entry : numTriangles.entrySet()) {
-			System.out.printf("(%d,%d): %d\n", entry.getKey().head().id()+offset, 
-					entry.getKey().tail().id()+offset, entry.getValue());
-		}
 	}
 	
 	/**
@@ -53,19 +43,11 @@ public class TriangleCounter {
 			int numEdgeTriangles = 0;
 			int pu = 0;
 			int pv = 0;
+			Node u = edge.head();
+			Node v = edge.tail();
 			
-			if (edge == null) {
-				System.out.println("TriangleCounter: countTriangles(): edge == null");
-			}
-			if (edge.head() == null) {
-				System.out.println("TriangleCounter: countTriangles(): edge.head == null");
-			}
-			if (edge.tail() == null) {
-				System.out.println("TriangleCounter: countTriangles(): edge.tail == null");
-			}
-			
-			LinkedList<Node> neighborsOfU = (LinkedList<Node>) graph.neighborhood(edge.head());
-			LinkedList<Node> neighborsOfV = (LinkedList<Node>) graph.neighborhood(edge.tail());
+			LinkedList<Node> neighborsOfU = (LinkedList<Node>) graph.neighborhood(u);
+			LinkedList<Node> neighborsOfV = (LinkedList<Node>) graph.neighborhood(v);
 			while (pu < neighborsOfU.size() && pv < neighborsOfV.size()) {
 				if (neighborsOfU.get(pu).compareTo(neighborsOfV.get(pv)) == 0) {
 					++numEdgeTriangles;

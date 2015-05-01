@@ -2,9 +2,9 @@ package com.dblp.communities.graphs;
 
 public class Node implements Comparable<Node> {
 
-	protected int id;
+	protected Integer id;
 	
-	public Node(int id) {
+	public Node(Integer id) {
 		this.id = id;
 	}
 	
@@ -12,7 +12,7 @@ public class Node implements Comparable<Node> {
 		return new Node(this.id);
 	}
 	
-	public int id() {
+	public Integer id() {
 		return this.id;
 	}
 	

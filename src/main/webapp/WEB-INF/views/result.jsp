@@ -129,6 +129,23 @@
 											</td>
 										</tr>
 									
+										<tr>
+											<td>
+												<label class="control-label" for="graphType">
+													<spring:message	code="choosePerson.graphType" />
+												</label>
+											</td>
+											<td>
+												<select name="graphType">
+													<option value="weighted" <c:if test="${graphType == 'weighted'}">selected="selected"</c:if>>Weighted graph</option>
+													<option value="unweighted" <c:if test="${graphType == 'unweighted'}">selected="selected"</c:if>>Unweighted graph</option>
+												</select>
+											</td>
+											<td></td>
+											<td>
+												<form:errors path="definition" cssClass="text-danger" />
+											</td>
+										</tr>
 									
 										<tr>
 											<td>
@@ -140,8 +157,6 @@
 												<select name="definition">
 													<option <c:if test="${definition == 'strong'}">selected="selected"</c:if> value="strong">Strong community</option>
 													<option <c:if test="${definition == 'weak'}">selected="selected"</c:if> value="weak">Weak community</option>
-													<option <c:if test="${definition == 'strongweighted'}">selected="selected"</c:if> value="strongweighted">Strong weighted community</option>
-													<option <c:if test="${definition == 'weakweighted'}">selected="selected"</c:if> value="weakweighted">Weak weighted community</option>
 													<option <c:if test="${definition == 'bounded'}">selected="selected"</c:if> value="bounded">Bounded size community</option>
 												</select>
 											</td>
@@ -363,7 +378,8 @@
 									<p>Lower bound: ${lower} %</p>		
 									<p>${name} included in network: ${includeMainAuthor}</p>							
 			  					</div>
-			  					<div class="col-xs-4">			  						
+			  					<div class="col-xs-4">		
+			  						<p>Graph type: ${graphType}</p>						
 									<p># coauthors: ${numCoauthors}</p>
 									<p># communities: ${fn:length(communities)}</p>
 									<p><a href="http://en.wikipedia.org/wiki/Modularity_%28networks%29">Modularity</a>: ${modularity}</p>
@@ -372,6 +388,12 @@
 									<p># edges: ${totalNumEdges}</p>
 									<p># intra-community edges: ${numIntraCommunityEdges}</p>
 									<p># inter-community edges: ${numInterCommunityEdges}</p>
+									<c:if test="${useWeights}">
+										<p>total weight on intra-community edges: ${totalWeightOnIntraCommunityEdges}</p>
+									</c:if>
+									<c:if test="${useWeights}">
+										<p>total weight on inter-community edges: ${totalWeightOnInterCommunityEdges}</p>
+									</c:if>
 									<c:if test="${not empty tooManyRequests}">
 										<p>${tooManyRequests}</p>
 									</c:if>
@@ -432,6 +454,9 @@
 	<section>
 		<div class="container">
 			<h2>The communities</h2>
+			<c:if test="${useWeights}">
+				<p>The number of coauthored publications with ${name} is shown in parentheses behind each author.</p>
+			</c:if>
 			<div class="row">
 				<c:forEach items="${communities}" var="community">
 					<c:if test="${fn:length(community.elements) gt 0}">
@@ -439,11 +464,19 @@
 							<div class="thumbnail" style="background-color: #b0c4de">
 								<p>
 									<b>Community #${community.id}</b><br />
-									<b>Size</b>: ${fn:length(community.elements)}
+									<b>Size</b>: ${fn:length(community.elements)}<br />
+									<c:if test="${useWeights}">
+										<b>Internal edge weight:</b> ${community.internalEdgeWeight}
+									</c:if>
 								</p>
 								<ul>
 									<c:forEach items="${community.elements}" var="elm">
-										<li>${elm.name}</li>
+										<li>
+										${elm.name}
+										<c:if test="${useWeights}">
+											(${elm.numPublicationsWithMainAuthor})
+										</c:if>
+										</li>
 									</c:forEach>
 								</ul>
 								<c:if test="${fn:length(community.elements) lt minNumNodesInCommunity}">
@@ -478,13 +511,14 @@
 			
 			<div id="visualization"></div>
 			<script type="text/javascript">
+			
 				var network;
-	
+				
 				var nodes = new vis.DataSet();
 				var edges = new vis.DataSet();
 				var gephiImported;
 				
-				loadJSON("<spring:url value="/json/${name}"/>",redrawAll);
+				loadJSON("<spring:url value='/json/${name}'/>",redrawAll);
 				
 				var container = document.getElementById('visualization');
 				var data = {
@@ -506,7 +540,17 @@
 				    },
 				    edges: {
 				        width: 0.15,
-				        inheritColor: "from"
+				        inheritColor: "from",
+				        fontSize: 12,
+			            fontFace: "Tahoma",
+			            scaleFontWithValue:true,
+			            fontSizeMin:8,
+			            fontSizeMax:20,
+			            fontThreshold:12,
+			            fontSizeMaxVisible:20,
+				        fontStrokeWidth:1,
+				        fontStrokeColor: "#d1d1d1",
+				        fontFill: "none"
 				    },
 				    tooltip: {
 				        delay: 200,

@@ -8,7 +8,6 @@ import javax.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
-import org.springframework.web.client.RestTemplate;
 
 import com.dblp.communities.algorithm.radicchi.LabeledRadicchi;
 import com.dblp.communities.datastructure.LayerInfo;
@@ -17,7 +16,6 @@ import com.dblp.communities.datastructure.WebCommunity;
 import com.dblp.communities.domain.Input;
 import com.dblp.communities.exception.TooManyRequestsException;
 import com.dblp.communities.graphs.LabeledUndirectedGraph;
-import com.dblp.communities.graphs.LabeledUndirectedMultigraph;
 import com.dblp.communities.io.FileDownloader;
 import com.dblp.communities.parser.Coauthor;
 import com.dblp.communities.parser.ParserResult;
@@ -30,8 +28,7 @@ public class AlgorithmServiceImpl implements AlgorithmService {
 		String personInPreviousSearch = (String) request.getSession().getAttribute("prevName");
 		if ((newSettings || input.getName() != null) && personInPreviousSearch != null) {
 			if (input.getName().equalsIgnoreCase(personInPreviousSearch)) {
-				if (request.getSession().getAttribute("graphMA") != null && request.getSession().getAttribute("graphNoMA") != null
-						&& request.getSession().getAttribute("multigraphMA") != null && request.getSession().getAttribute("multigraphNoMA") != null) {
+				if (request.getSession().getAttribute("graphMA") != null && request.getSession().getAttribute("graphNoMA") != null) {
 					return true;
 				} else { 
 					return false;
@@ -56,6 +53,7 @@ public class AlgorithmServiceImpl implements AlgorithmService {
 		request.getSession().removeAttribute("lowerValue");
 		request.getSession().removeAttribute("showNumEdgesValue");
 		request.getSession().removeAttribute("includeMainAuthorValue");
+		request.getSession().removeAttribute("graphType");
 		
 		// Saving input settings in session
 		request.getSession().setAttribute("definition", input.getDefinition());
@@ -65,6 +63,7 @@ public class AlgorithmServiceImpl implements AlgorithmService {
 		request.getSession().setAttribute("lowerValue", input.getLower());
 		request.getSession().setAttribute("showNumEdgesValue", input.isShowNumEdges());
 		request.getSession().setAttribute("includeMainAuthorValue", input.isIncludeMainAuthor());
+		request.getSession().setAttribute("graphType", input.getGraphType());
 	}
 	
 	public void saveInputSettingsInModel(Input input, Model model) {
@@ -75,6 +74,7 @@ public class AlgorithmServiceImpl implements AlgorithmService {
 		model.addAttribute("lower", (int) (input.getLower() * 100));
 		model.addAttribute("showNumEdges", input.isShowNumEdges());
 		model.addAttribute("includeMainAuthor", input.isIncludeMainAuthor());
+		model.addAttribute("graphType", input.getGraphType());
 	}
 	
 	private boolean mustUse_DBLP_XML_API(ParserResult parserResult) {
@@ -83,6 +83,24 @@ public class AlgorithmServiceImpl implements AlgorithmService {
 			return true;
 		} else {
 			return false;
+		}
+	}
+	
+	/**
+	 * 
+	 */
+	public LabeledUndirectedGraph getCollaborationNetwork(HttpServletRequest request, boolean includeMainAuthor) {
+		LabeledUndirectedGraph graphMA = (LabeledUndirectedGraph) request.getSession().getAttribute("graphMA");
+		LabeledUndirectedGraph graphNoMA = (LabeledUndirectedGraph) request.getSession().getAttribute("graphNoMA");
+		
+		request.getSession().removeAttribute("graph");
+		if (includeMainAuthor) {
+			request.getSession().setAttribute("graph", graphMA);
+			return graphMA;
+		}
+		else {
+			request.getSession().setAttribute("graph", graphNoMA);
+			return graphNoMA;
 		}
 	}
 	
@@ -97,24 +115,29 @@ public class AlgorithmServiceImpl implements AlgorithmService {
 		LabeledUndirectedGraph graphWithMA = new LabeledUndirectedGraph(input.getName(), input.getUrlpt(), true, coauthors, listOfListOfCoauthor);
 		LabeledUndirectedGraph graphNoMA = new LabeledUndirectedGraph(input.getName(), input.getUrlpt(), false, coauthors, listOfListOfCoauthor);
 		
-//		LabeledUndirectedMultigraph multigraphWithMA = new LabeledUndirectedMultigraph(input.getName(), input.getUrlpt(), true, coauthors, listOfListOfCoauthor);
-//		LabeledUndirectedMultigraph multigraphNoMA = new LabeledUndirectedMultigraph(input.getName(), input.getUrlpt(), true, coauthors, listOfListOfCoauthor);
-		
 		request.getSession().removeAttribute("graphMA");
 		request.getSession().removeAttribute("graphNoMA");
 		request.getSession().removeAttribute("numCoauthors");
-//		request.getSession().removeAttribute("multigraphMA");
-//		request.getSession().removeAttribute("multigraphNoMA");
 		
 		request.getSession().setAttribute("graphMA", graphWithMA);
 		request.getSession().setAttribute("graphNoMA", graphNoMA);
 		request.getSession().setAttribute("numCoauthors", coauthors.size());
-//		request.getSession().setAttribute("multigraphMA", multigraphWithMA);
-//		request.getSession().setAttribute("multigraphNoMA", multigraphNoMA);
 		
 		model.addAttribute("numCoauthors", coauthors.size());
+		
+		int numNodes = 0;
+		if (input.isIncludeMainAuthor()) {
+			numNodes = graphWithMA.numNodes();
+		} else {
+			numNodes = graphNoMA.numNodes();
+		}
+		
+		int minNumNodesInCommunity = (int)(input.getLower().doubleValue() * numNodes);
+		request.getSession().setAttribute("minNumNodesInCommunity", minNumNodesInCommunity);
+		model.addAttribute("minNumNodesInCommunity", minNumNodesInCommunity);
 	}
 	
+	// TODO: Needs a fix
 	private void buildNetworkFromDatabase(HttpServletRequest request, Model model, Input input, ParserResult parserResult) {
 		LabeledUndirectedGraph graphWithMA = new LabeledUndirectedGraph(input.getName(), input.getUrlpt(), true, parserResult);
 		LabeledUndirectedGraph graphNoMA = new LabeledUndirectedGraph(input.getName(), input.getUrlpt(), false, parserResult);
@@ -134,33 +157,17 @@ public class AlgorithmServiceImpl implements AlgorithmService {
 		}
 	}
 	
-	public LabeledUndirectedMultigraph buildCollaborationMultiNetwork(BindingResult result, HttpServletRequest request, Model model, Input input,
-			boolean newSettings) {
-		
-		System.out.println("buildCollaborationMultiNetwork: start");
-		
-		boolean usingPreviouslyBuiltGraph = false;
-		LabeledUndirectedMultigraph answerGraph = null;
-		
+	public void buildCollaborationNetwork(BindingResult result, HttpServletRequest request, Model model, Input input, boolean newSettings) {
+
+		boolean canUsePreviouslyBuiltNetworks = false;
+
 		try {
 			
 			if (canUseSettingsFromPreviousSearch(request, input, newSettings)) {				
-				usingPreviouslyBuiltGraph = true;				
-				request.getSession().removeAttribute("graph");
-				if (input.isIncludeMainAuthor()) {
-					LabeledUndirectedMultigraph graphWithMA = (LabeledUndirectedMultigraph) request.getSession().getAttribute("multigraphMA");
-					request.getSession().setAttribute("graph", graphWithMA);
-					answerGraph = graphWithMA;
-				} else {
-					LabeledUndirectedMultigraph graphWithoutMA = (LabeledUndirectedMultigraph) request.getSession().getAttribute("multigraphNoMA");
-					request.getSession().setAttribute("graph", graphWithoutMA);
-					answerGraph = graphWithoutMA;
-				}
+				canUsePreviouslyBuiltNetworks = true;
 			}
-			
-			if (!usingPreviouslyBuiltGraph) {
-				
-				System.out.println("buildCollaborationMultiNetwork: NOT using prev built graph");
+
+			if (!canUsePreviouslyBuiltNetworks) {
 				
 				ParserResult parserResult = null;
 				
@@ -168,64 +175,6 @@ public class AlgorithmServiceImpl implements AlgorithmService {
 					buildNetoworkViaXML_API(request, model, input);
 				} else {
 					buildNetworkFromDatabase(request, model, input, parserResult);
-				}
-				
-				if (input.isIncludeMainAuthor()) {
-					answerGraph = (LabeledUndirectedMultigraph) request.getSession().getAttribute("multigraphMA");
-					request.getSession().setAttribute("graph", answerGraph);
-				} else {
-					System.out.println("buildCollaborationMultiNetwork: NOT including MA");
-					answerGraph = (LabeledUndirectedMultigraph) request.getSession().getAttribute("multigraphNoMA");
-					System.out.println("buildCollaborationMultiNetwork: # edges in multigraph = " + answerGraph.numEdges());
-					request.getSession().setAttribute("graph", answerGraph);
-				}
-			}
-			
-		} catch (Exception e) {
-			
-		}
-		
-		return answerGraph;
-	}
-
-	public LabeledUndirectedGraph buildCollaborationNetwork(BindingResult result, HttpServletRequest request, Model model, Input input,
-			boolean newSettings) {
-
-		boolean usingPreviouslyBuiltGraph = false;
-		LabeledUndirectedGraph answerGraph = null;
-
-		try {
-			
-			if (canUseSettingsFromPreviousSearch(request, input, newSettings)) {				
-				usingPreviouslyBuiltGraph = true;				
-				request.getSession().removeAttribute("graph");
-				if (input.isIncludeMainAuthor()) {
-					LabeledUndirectedGraph graphWithMA = (LabeledUndirectedGraph) request.getSession().getAttribute("graphMA");
-					request.getSession().setAttribute("graph", graphWithMA);
-					answerGraph = graphWithMA;
-				} else {
-					LabeledUndirectedGraph graphWithoutMA = (LabeledUndirectedGraph) request.getSession().getAttribute("graphNoMA");
-					request.getSession().setAttribute("graph", graphWithoutMA);
-					answerGraph = graphWithoutMA;
-				}
-			}
-
-			if (!usingPreviouslyBuiltGraph) {
-				
-				ParserResult parserResult = null;
-				
-				if (mustUse_DBLP_XML_API(parserResult)) {
-					buildNetoworkViaXML_API(request, model, input);
-				} else {
-					buildNetworkFromDatabase(request, model, input, parserResult);
-				}
-				
-				if (input.isIncludeMainAuthor()) {
-					answerGraph = (LabeledUndirectedGraph) request.getSession().getAttribute("graphMA");
-					request.getSession().setAttribute("graph", answerGraph);
-				} else {
-					answerGraph = (LabeledUndirectedGraph) request.getSession().getAttribute("graphNoMA");
-					request.getSession().setAttribute("graph", answerGraph);
 				}
 			}
 
@@ -236,22 +185,25 @@ public class AlgorithmServiceImpl implements AlgorithmService {
 							+ " This may happen if you are searching for an author"
 							+ " with many coauthors.");
 		}
-		
-		int minNumNodesInCommunity = (int)(input.getLower().doubleValue() * answerGraph.numNodes());
-		request.getSession().setAttribute("minNumNodesInCommunity", minNumNodesInCommunity);
-		model.addAttribute("minNumNodesInCommunity", minNumNodesInCommunity);
-
-		return answerGraph;
 	}
 
 	public void executeRadicchiAlgorithm(LabeledUndirectedGraph graph, HttpServletRequest request, Model model, Input input) {
-		LabeledRadicchi radicchi = new LabeledRadicchi(graph, input.getLower(), input.getDefinition(), input.isIncludeMainAuthor());
+		LabeledRadicchi radicchi = new LabeledRadicchi(graph, input.getLower(), input.getDefinition(), input.getGraphType());
 		radicchi.detectCommunities();
 		saveAlgorithmResultsInSession(request, radicchi);
-		saveAlgorithmResultsInModel(model, radicchi);
+		saveAlgorithmResultsInModel(request, model, radicchi);
+		storeGraphTypeInModel(request, model, input);
 	}
 	
-	private void saveAlgorithmResultsInModel(Model model, LabeledRadicchi radicchi) {
+	private void storeGraphTypeInModel(HttpServletRequest request, Model model, Input input) {
+		if (input.getGraphType().equals("weighted")) {
+			model.addAttribute("useWeights", true);
+		} else {
+			model.addAttribute("useWeights", false);
+		}
+	}
+	
+	private void saveAlgorithmResultsInModel(HttpServletRequest request, Model model, LabeledRadicchi radicchi) {
 		int numPartitions = radicchi.getNumPartitions();
 		List<LayerInfo> layerInfos = radicchi.getLayerInfos();
 		List<LayerOfCommunities> partitions = radicchi.getCommunityPartitions();
@@ -259,12 +211,15 @@ public class AlgorithmServiceImpl implements AlgorithmService {
 		List<WebCommunity> communities = radicchi.getFinalCommunityPartition();
 		
 		model.addAttribute("modularity", finalLayer.getModularity());
+		model.addAttribute("useWeights", false);		
 		model.addAttribute("communities", communities);
 		model.addAttribute("numPartitions", numPartitions);
 		model.addAttribute("layerInfos", layerInfos);
 		model.addAttribute("totalNumEdges", finalLayer.getTotalNumEdges());
 		model.addAttribute("numIntraCommunityEdges", finalLayer.getNumIntraCommunityEdges());
 		model.addAttribute("numInterCommunityEdges", finalLayer.getNumInterCommunityEdges());
+		model.addAttribute("totalWeightOnIntraCommunityEdges", finalLayer.getTotalWeightOnIntraCommunityEdges());
+		model.addAttribute("totalWeightOnInterCommunityEdges", finalLayer.getTotalWeightOnInterCommunityEdges());
 	}
 	
 	private void saveAlgorithmResultsInSession(HttpServletRequest request, LabeledRadicchi radicchi) {
@@ -272,7 +227,6 @@ public class AlgorithmServiceImpl implements AlgorithmService {
 		List<LayerInfo> layerInfos = radicchi.getLayerInfos();
 		List<LayerOfCommunities> partitions = radicchi.getCommunityPartitions();
 		List<WebCommunity> communities = radicchi.getFinalCommunityPartition();
-		LayerOfCommunities finalLayer = partitions.get(partitions.size()-1);
 		
 		// Remove old results
 		request.getSession().removeAttribute("communities");
@@ -317,6 +271,8 @@ public class AlgorithmServiceImpl implements AlgorithmService {
 		model.addAttribute("totalNumEdges", finalLayer.getTotalNumEdges());
 		model.addAttribute("numIntraCommunityEdges", finalLayer.getNumIntraCommunityEdges());
 		model.addAttribute("numInterCommunityEdges", finalLayer.getNumInterCommunityEdges());
+		model.addAttribute("totalWeightOnIntraCommunityEdges", finalLayer.getTotalWeightOnIntraCommunityEdges());
+		model.addAttribute("totalWeightOnInterCommunityEdges", finalLayer.getTotalWeightOnInterCommunityEdges());
 		model.addAttribute("numCoauthors", numCoauthors);
 	}
 	
@@ -329,9 +285,14 @@ public class AlgorithmServiceImpl implements AlgorithmService {
 		request.getSession().removeAttribute("communities");		
 		request.getSession().setAttribute("communities", communities);		
 		model.addAttribute("communities", communities);
-		model.addAttribute("modularity", chosenLayer.getModularity());
 		
-		// prepare model for unchanged stuff
+		String graphType = (String) request.getSession().getAttribute("graphType");
+		if (graphType.equalsIgnoreCase("weighted")) {
+			model.addAttribute("modularity", chosenLayer.getWeightedModularity());
+		} else {
+			model.addAttribute("modularity", chosenLayer.getModularity());
+		}
+		
 		prepareModelForUnchangedStuff(request, model);
 	}
 }

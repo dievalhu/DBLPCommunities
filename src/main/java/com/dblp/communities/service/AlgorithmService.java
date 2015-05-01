@@ -7,25 +7,17 @@ import org.springframework.validation.BindingResult;
 
 import com.dblp.communities.domain.Input;
 import com.dblp.communities.graphs.LabeledUndirectedGraph;
-import com.dblp.communities.graphs.LabeledUndirectedMultigraph;
 
 public interface AlgorithmService {
 	
 	/**
-	 * Builds the collaboration network of the author given in the 'input' as a multigraph. If the
-	 * user has searched for the same author as he did the previous time he did a
-	 * search, then the network is not built form scrath but the network is
-	 * retrieved from the session.
+	 * Should be called after the method 'buildCollaborationNetwork' has been called.
 	 * 
-	 * @param result
 	 * @param request
-	 * @param model
-	 * @param input
-	 * @param newSettings
+	 * @param includeMainAuthor
 	 * @return
 	 */
-	public LabeledUndirectedMultigraph buildCollaborationMultiNetwork(BindingResult result, HttpServletRequest request, Model model, Input input,
-			boolean newSettings);
+	public LabeledUndirectedGraph getCollaborationNetwork(HttpServletRequest request, boolean includeMainAuthor);
 	
 	/**
 	 * Builds the collaboration network of the author given in the 'input'. If the
@@ -39,8 +31,7 @@ public interface AlgorithmService {
 	 * @param input
 	 * @return
 	 */
-	public LabeledUndirectedGraph buildCollaborationNetwork(BindingResult result, HttpServletRequest request, 
-			Model model, Input input, boolean newSettings);
+	public void buildCollaborationNetwork(BindingResult result, HttpServletRequest request, Model model, Input input, boolean newSettings);
 
 	/**
 	 * Executes the Radicchi algorithm with the parameters set in the 'input', stores

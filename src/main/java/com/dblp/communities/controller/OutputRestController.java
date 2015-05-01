@@ -16,7 +16,6 @@ import com.dblp.communities.datastructure.WebCommunity;
 import com.dblp.communities.exception.NotFoundException;
 import com.dblp.communities.graphs.JSONGraph;
 import com.dblp.communities.graphs.LabeledUndirectedGraph;
-import com.dblp.communities.graphs.LabeledUndirectedMultigraph;
 import com.dblp.communities.exception.Error;
 
 @RestController
@@ -41,6 +40,7 @@ public class OutputRestController {
 		}
 		
 		LabeledUndirectedGraph graph = new LabeledUndirectedGraph((LabeledUndirectedGraph) request.getSession().getAttribute("graph"));
+		@SuppressWarnings("unchecked")
 		List<WebCommunity> communities = (List<WebCommunity>) request.getSession().getAttribute("communities");			
 		
 		return new JSONGraph(graph, communities);

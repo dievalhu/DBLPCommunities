@@ -1,14 +1,23 @@
 package com.dblp.communities.datastructure;
 
 public class PersonInCommunity implements Comparable<PersonInCommunity> {
-	public int nodeId;
-	public int color;
-	public String name;
+	private int nodeId;
+	private int color;
+	private String name;
+	private int numPublicationsWithMainAuthor;
 	
-	public PersonInCommunity(int n, int c, String na) {
-		nodeId = n;
-		color = c;
-		name = na;
+	/**
+	 * Creates an object representing a person in a community.
+	 * 
+	 * @param nodeId the node id of the node representing the given person
+	 * @param communityId the community id of this person, as given by a DFS in the graph
+	 * @param name the name of this person
+	 */
+	public PersonInCommunity(int nodeId, int communityId, String name, int numPublicationsWithMainAuthor) {
+		this.nodeId = nodeId;
+		this.color = communityId;
+		this.name = name;
+		this.numPublicationsWithMainAuthor = numPublicationsWithMainAuthor;
 	}
 
 	public int compareTo(PersonInCommunity other) {
@@ -23,6 +32,14 @@ public class PersonInCommunity implements Comparable<PersonInCommunity> {
 		} else {
 			return 0;
 		}
+	}
+	
+	public int getNumPublicationsWithMainAuthor() {
+		return numPublicationsWithMainAuthor;
+	}
+
+	public void setNumPublicationsWithMainAuthor(int numPublicationsWithMainAuthor) {
+		this.numPublicationsWithMainAuthor = numPublicationsWithMainAuthor;
 	}
 
 	public int getNodeId() {

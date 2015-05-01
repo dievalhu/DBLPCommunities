@@ -78,6 +78,7 @@ s<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
 			<form:errors path="*" cssClass="alert alert-danger" element="div" />
 			<fieldset>
 				<table>
+					
 					<tr>
 						<td>
 							<label class="control-label" for="person"> 
@@ -95,6 +96,25 @@ s<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
 							<form:errors path="person" cssClass="text-danger" />
 						</td>
 					</tr>
+					
+					<tr>
+						<td>
+							<label class="control-label" for="graphType">
+								<spring:message	code="choosePerson.graphType" />
+							</label>
+						</td>
+						<td>
+							<select name="graphType">
+								<option value="weighted" selected="selected">Weighted graph</option>
+								<option value="unweighted">Unweighted graph</option>
+							</select>
+						</td>
+						<td></td>
+						<td>
+							<form:errors path="definition" cssClass="text-danger" />
+						</td>
+					</tr>
+					
 					<tr>
 						<td>
 							<label class="control-label" for="definition">
@@ -105,8 +125,6 @@ s<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
 							<select name="definition"">
 								<option value="strong">Strong community</option>
 								<option value="weak" selected="selected">Weak community</option>
-								<option value="strongweighted">Strong weighted community</option>
-								<option value="weakweighted">Weak weighted community</option>
 								<option value="bounded">Bounded size community</option>
 							</select>
 						</td>
@@ -115,6 +133,7 @@ s<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
 							<form:errors path="definition" cssClass="text-danger" />
 						</td>
 					</tr>
+					
 					<tr>
 						<td>
 							<label class="control-label" for="lower">

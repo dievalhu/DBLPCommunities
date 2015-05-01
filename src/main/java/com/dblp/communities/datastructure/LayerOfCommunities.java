@@ -36,10 +36,6 @@ public class LayerOfCommunities {
 	 */
 	private boolean communitiesArePrepared;
 	/**
-	 * The number of communities in this community partition.
-	 */
-	private int numCommunities;
-	/**
 	 * A unique integer id for this layer of communities.
 	 */
 	private int layerId;
@@ -59,15 +55,30 @@ public class LayerOfCommunities {
 	 */
 	private int numInterCommunityEdges;
 	/**
-	 * Include main author.
+	 * The sum of the weights on the intra-community edges.
 	 */
-	private boolean includeMainAuthor;
+	private int totalWeightOnIntraCommunityEdges;
+	/**
+	 * The sum of the weights on the inter-community edges.
+	 */
+	private int totalWeightOnInterCommunityEdges;
 	
 	private Double modularity;
 	
 	private boolean modularityComputed;
 	
+	private Double weightedModularity;
+	
+	private boolean weightedModularityComputed;
+	
+	private Integer totalEdgeWeight;
+	
+	private boolean totalEdgeWeightComputed;
+	
 	private HashMap<Integer,Integer> metaIdToVisualId = new HashMap<Integer,Integer>();
+	
+	private int[] communityWeights;
+	
 
 	/**
 	 * Makes a layer of communities, that is, a partition into a certain number of communities.
@@ -85,12 +96,49 @@ public class LayerOfCommunities {
 		this.visualCommunities = new ArrayList<WebCommunity>();
 		this.communitiesArePrepared = false;
 		this.modularityComputed = false;
+		this.weightedModularityComputed = false;
+		this.totalEdgeWeightComputed = false;
+		this.communityWeights = new int[connectedComponents.length];
 		countEdgeTypes();
 	}
 	
 	////////////////////
 	// PUBLIC METHODS //
 	////////////////////
+	
+	public Double getWeightedModularity() {
+		if (!communitiesArePrepared()) {
+			prepareCommunities();	
+		}
+		
+		if (weightedModularityComputed) {
+			return weightedModularity;
+		}
+		
+		Double sum = 0.0;
+		Integer totalWeight = totalEdgeWeight();
+		
+		for (int i = 0; i < initialGraph.numNodes(); ++i) {
+			for (int j = i + 1; j < initialGraph.numNodes(); ++j) {
+				if (metagraph.areInSameCommunity(i, j)) {
+					Node iNode = new Node(i);
+					Node jNode = new Node(j);
+					if (initialGraph.areNeighbors(iNode, jNode)) {
+						int si = initialGraph.strength(iNode);
+						int sj = initialGraph.strength(jNode);
+						Integer ijWeight = initialGraph.weight(iNode, jNode);
+						sum = sum + (ijWeight - ((si * sj) / (2 * totalWeight)));
+					}
+				}
+			}
+		}
+		
+		weightedModularity = sum/(2.0 * totalWeight);
+		
+		weightedModularityComputed = true;
+		
+		return weightedModularity;
+	}
 	
 	public Double getModularity() {
 		if (!communitiesArePrepared()) {
@@ -105,7 +153,7 @@ public class LayerOfCommunities {
 		int m = initialGraph.numEdges();
 		
 		for (int i = 0; i < initialGraph.numNodes(); ++i) {
-			for (int j = 0; j < initialGraph.numNodes(); ++j) {
+			for (int j = i + 1; j < initialGraph.numNodes(); ++j) {
 				if (metagraph.areInSameCommunity(i, j)) {
 					if (initialGraph.areNeighbors(new Node(i), new Node(j))) {
 						int degI = initialGraph.numNeighbors(new Node(i));
@@ -121,6 +169,14 @@ public class LayerOfCommunities {
 		modularityComputed = true;
 		
 		return modularity;
+	}
+	
+	public int getTotalWeightOnIntraCommunityEdges() {
+		return totalWeightOnIntraCommunityEdges;
+	}
+	
+	public int getTotalWeightOnInterCommunityEdges() {
+		return totalWeightOnInterCommunityEdges;
 	}
 	
 	/**
@@ -166,6 +222,10 @@ public class LayerOfCommunities {
 	}
 	
 	public int numCommunities() {
+		if (!communitiesArePrepared()) {
+			prepareCommunities();	
+		}
+		
 		return this.visualCommunities.size();
 	}
 	
@@ -182,6 +242,27 @@ public class LayerOfCommunities {
 	/////////////////////
 	
 	/**
+	 * Get the total edge weight of the graph.
+	 * 
+	 * @return
+	 */
+	private Integer totalEdgeWeight() {
+		if (totalEdgeWeightComputed) {
+			return totalEdgeWeight;
+		}
+		
+		totalEdgeWeight = new Integer(0);
+		
+		for (Edge e : initialGraph.edges()) {
+			totalEdgeWeight = totalEdgeWeight + e.getWeight();
+		}
+		
+		totalEdgeWeightComputed = true;
+		
+		return totalEdgeWeight;
+	}
+	
+	/**
 	 * Retrieves the total number of edges in the original
 	 * graph, and counts the number of intra and inter 
 	 * community edges in the same graph. 
@@ -191,11 +272,17 @@ public class LayerOfCommunities {
 		
 		numIntraCommunityEdges = 0;
 		numInterCommunityEdges = 0;
+		totalWeightOnIntraCommunityEdges = 0;
+		totalWeightOnInterCommunityEdges = 0;
 		for (Edge edge : initialGraph.edges()) {
 			if (connectedComponents[edge.start()] == connectedComponents[edge.end()]) {
 				++numIntraCommunityEdges;
+				totalWeightOnIntraCommunityEdges += edge.getWeight();
+				int communityId = connectedComponents[edge.start()];
+				communityWeights[communityId] += edge.getWeight();
 			} else {
 				++numInterCommunityEdges;
+				totalWeightOnInterCommunityEdges += edge.getWeight();
 			}
 		}
 	}
@@ -215,10 +302,11 @@ public class LayerOfCommunities {
 	private void makeEdgesBetweenCommunities() {
 		for (WebCommunity c : visualCommunities) {
 			if (c.getElements().size() > 0) {
-				int representativeMetaID = c.getElements().get(0).nodeId;
-				Set<Integer> neighborsOfC = metagraph.neighborhood(representativeMetaID);	
+				PersonInCommunity firstPerson = c.getElements().get(0);
+				int representativeNodeId = firstPerson.getNodeId();
+				Set<Integer> neighborsOfC = metagraph.neighborhood(representativeNodeId);	
 				for (Integer neighborMetaID : neighborsOfC) {
-					int numEdgesBetweenCommunities = metagraph.numEdgesBetweenCommunities(representativeMetaID, neighborMetaID);
+					int numEdgesBetweenCommunities = metagraph.numEdgesBetweenCommunities(representativeNodeId, neighborMetaID);
 					if (numEdgesBetweenCommunities > 0) {
 						c.setNumEdgesToCommunity(metaIdToVisualId.get(neighborMetaID), numEdgesBetweenCommunities);
 					}
@@ -230,7 +318,7 @@ public class LayerOfCommunities {
 	private void injectCommunityIdsIntoComponents() {		
 		for (WebCommunity community : visualCommunities) {
 			if (community.getElements().size() > 0) {
-				int representative = community.getElements().get(0).nodeId;
+				int representative = community.getElements().get(0).getNodeId();
 				community.setMetagraphParentId(metagraph.parent(representative));
 				metaIdToVisualId.put(community.getMetagraphParentId(), community.getId());
 			}
@@ -243,7 +331,7 @@ public class LayerOfCommunities {
 			if (community.getElements().size() > 0) {
 				PersonInCommunity firstElement = community.getElements().get(0);
 				for (PersonInCommunity elm : community) {
-					metagraph.merge(firstElement.nodeId, elm.nodeId);
+					metagraph.merge(firstElement.getNodeId(), elm.getNodeId());
 				}
 			}
 		}
@@ -253,25 +341,32 @@ public class LayerOfCommunities {
 		PriorityQueue<PersonInCommunity> queue = new PriorityQueue<PersonInCommunity>();
 
 		for (int i = 0; i < connectedComponents.length; ++i) {
-			PersonInCommunity elm = new PersonInCommunity(i, connectedComponents[i], initialGraph.nameOfNodeWithId(i));
+			String authorName = initialGraph.nameOfNodeWithId(i);
+			Integer numPublicationsWithMainAuthor = initialGraph.numPublicationsWithMainAuthor(authorName);
+			PersonInCommunity elm = new PersonInCommunity(i, connectedComponents[i], authorName, numPublicationsWithMainAuthor);
 			queue.add(elm);
 		}
 
 		int currentColor = 1;
 		WebCommunity currCommunity = new WebCommunity();
 		int visualCommunityId = 1; // the id to be shown on the web page
+		PersonInCommunity firstElm = queue.poll();
+		currCommunity.add(firstElm);
 		currCommunity.setId(visualCommunityId);
+		currCommunity.setColor(currentColor);
+		currCommunity.setInternalEdgeWeight(communityWeights[firstElm.getColor()]);
 
 		/**
 		 * All people with id 1 is retrieved first, then all people with id 2, etc.
 		 */
 		while (!queue.isEmpty()) {
 			PersonInCommunity elm = queue.poll();
-			if (elm.color != currentColor) {
-				currentColor = elm.color;
+			if (elm.getColor() != currentColor) {
+				currentColor = elm.getColor();
 				visualCommunities.add(currCommunity);				
 				++visualCommunityId;
 				currCommunity = new WebCommunity();
+				currCommunity.setInternalEdgeWeight(communityWeights[elm.getColor()]);
 				currCommunity.setId(visualCommunityId);
 				currCommunity.setColor(currentColor);
 			}
@@ -279,7 +374,5 @@ public class LayerOfCommunities {
 		}
 		
 		visualCommunities.add(currCommunity);
-		
-		numCommunities = visualCommunities.size();
 	}
 }

@@ -12,8 +12,7 @@ public class DefinitionValidator implements ConstraintValidator<Definition, Stri
 	public boolean isValid(String value, ConstraintValidatorContext context) {
 		
 		if (value.equalsIgnoreCase("weak") || value.equalsIgnoreCase("strong")
-				|| value.equalsIgnoreCase("bounded") || value.equalsIgnoreCase("strongweighted")
-				|| value.equalsIgnoreCase("weakweighted")) {
+				|| value.equalsIgnoreCase("bounded")) {
 			return true;
 		}
 		
