@@ -2,7 +2,7 @@
 
 Contributions to the vis.js library are very welcome! We can't do this alone.
 You can contribute in different ways: spread the word, report bugs, come up with
-ideas and suggestions, and contribute to the code.
+ideas and suggestions, and contribute to the code
 
 There are a few preferences regarding code contributions:
 
